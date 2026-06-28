@@ -1,0 +1,21 @@
+version: 2
+selections:
+    - kind: rule
+      name: code-standards
+      source: local
+    - kind: skill
+      name: lld-typescript
+      source: home
+    - kind: skill
+      name: low-level-design
+      source: home
+      bindings:
+        command: lld-typescript
+        domain: lld-typescript
+        hexagonal: lld-typescript
+        naming: lld-typescript
+        persistence: lld-typescript
+        query: lld-typescript
+    - kind: skill
+      name: tlc-spec-driven
+      source: local

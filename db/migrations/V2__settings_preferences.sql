@@ -1,0 +1,3 @@
+ALTER TABLE settings ADD COLUMN notifications_enabled INTEGER NOT NULL DEFAULT 1;
+
+ALTER TABLE settings ADD COLUMN theme TEXT NOT NULL DEFAULT 'light';

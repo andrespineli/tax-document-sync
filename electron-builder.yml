@@ -1,0 +1,48 @@
+appId: tech.devstation.tax-document-sync
+productName: Sincronizador de Documentos Fiscais
+copyright: Copyright © 2026 DevStationTech
+
+directories:
+  output: release
+
+files:
+  - out/**/*
+  - node_modules/**/*
+  - package.json
+
+extraResources:
+  - from: db/migrations
+    to: db/migrations
+    filter:
+      - "*.sql"
+
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
+
+publish:
+  provider: github
+  owner: devstationtech
+  repo: tax-document-sync
+
+win:
+  target:
+    - nsis
+  artifactName: "${name}-${version}-windows-${arch}.${ext}"
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+mac:
+  target:
+    - dmg
+    - zip
+  artifactName: "${name}-${version}-mac-${arch}.${ext}"
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+  artifactName: "${name}-${version}-linux-${arch}.${ext}"
