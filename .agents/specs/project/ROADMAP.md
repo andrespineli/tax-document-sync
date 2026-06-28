@@ -26,7 +26,7 @@
 ## Distribution And Architecture Hardening
 
 **Goal:** Make the desktop app releasable through GitHub Releases, updatable in the field and structurally cleaner by separating framework infrastructure from business contexts.
-**Target:** CI quality gates for PRs to `master`, release packaging for Windows/macOS/Linux, automatic updates, remembered login and SQL-file migrations.
+**Target:** CI quality gates for PRs to `main` or `master`, release packaging for Windows/macOS/Linux, automatic updates, remembered login and SQL-file migrations.
 
 ### Features
 

@@ -7,7 +7,7 @@ The MVP app runs locally in development, but it is not ready for predictable dis
 ## Goals
 
 - [x] Produce installable desktop artifacts for Windows, macOS and Linux when a GitHub Release is published from the GitHub UI.
-- [x] Run CI checks on pull requests targeting `master`.
+- [x] Run CI checks on pull requests targeting `main` or `master`.
 - [x] Provide automatic update checks and installation from published releases.
 - [x] Allow users to opt into staying logged in across app restarts.
 - [x] Move database migrations to pure `.sql` files under `db/migrations` using Flyway-style numbering.
@@ -50,13 +50,13 @@ The MVP app runs locally in development, but it is not ready for predictable dis
 
 ### P1: Pull Request Quality Gate
 
-**User Story**: As the maintainer, I want pull requests to `master` to run lint, typecheck, tests and build so that regressions are caught before merge.
+**User Story**: As the maintainer, I want pull requests to `main` or `master` to run lint, typecheck, tests and build so that regressions are caught before merge.
 
 **Why P1**: Distribution automation is only useful if releasable branches are verified.
 
 **Acceptance Criteria**:
 
-1. WHEN a pull request targets `master` THEN CI SHALL run `npm ci`.
+1. WHEN a pull request targets `main` or `master` THEN CI SHALL run `npm ci`.
 2. WHEN dependencies are installed THEN CI SHALL run `npm run lint`.
 3. WHEN lint passes THEN CI SHALL run `npm run typecheck`.
 4. WHEN typecheck passes THEN CI SHALL run `npm test`.
@@ -172,7 +172,7 @@ The MVP app runs locally in development, but it is not ready for predictable dis
 
 ## Success Criteria
 
-- [x] Pull requests to `master` run lint, typecheck, tests and build.
+- [x] Pull requests to `main` or `master` run lint, typecheck, tests and build.
 - [x] Publishing a GitHub Release attaches Windows, macOS and Linux artifacts.
 - [x] Packaged builds can discover updates through GitHub Releases.
 - [x] User can opt into remembered login and later clear it via logout.

@@ -123,8 +123,8 @@ Workflow: `.github/workflows/ci.yml`
 
 Triggers:
 
-- `pull_request` with `branches: [master]`
-- Optional `push` to `master` for post-merge confidence
+- `pull_request` with `branches: [main, master]`
+- Optional `push` to `main` or `master` for post-merge confidence
 
 Jobs:
 

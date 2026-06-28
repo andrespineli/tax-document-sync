@@ -148,14 +148,14 @@ T11
 
 ### T9: Add Pull Request CI Workflow
 
-**What**: Add GitHub Actions quality gate for PRs to `master`.
+**What**: Add GitHub Actions quality gate for PRs to `main` and `master`.
 **Where**: `.github/workflows/ci.yml`.
 **Depends on**: T1
 **Requirement**: DDA-02
 
 **Done when**:
 
-- [x] Workflow triggers on `pull_request` to `master`.
+- [x] Workflow triggers on `pull_request` to `main` and `master`.
 - [x] Workflow runs `npm ci`.
 - [x] Workflow runs lint, typecheck, tests and build.
 - [x] Workflow cache is configured without hiding dependency issues.
