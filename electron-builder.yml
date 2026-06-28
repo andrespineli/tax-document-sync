@@ -23,6 +23,7 @@ publish:
   provider: github
   owner: andrespineli
   repo: tax-document-sync
+  releaseType: release
 
 win:
   target:
