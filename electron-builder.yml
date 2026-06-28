@@ -21,7 +21,7 @@ asarUnpack:
 
 publish:
   provider: github
-  owner: devstationtech
+  owner: andrespineli
   repo: tax-document-sync
 
 win:
