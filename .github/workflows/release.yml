@@ -36,10 +36,10 @@ jobs:
       - name: Validate release version
         shell: bash
         run: |
-          tag="${GITHUB_REF_NAME#v}"
           version="$(node -p "require('./package.json').version")"
-          if [ "$tag" != "$version" ]; then
-            echo "Release tag v$tag does not match package.json version $version"
+          expected_tag="v${version}"
+          if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
+            echo "Release tag must be ${expected_tag}; got ${GITHUB_REF_NAME}"
             exit 1
           fi
 
