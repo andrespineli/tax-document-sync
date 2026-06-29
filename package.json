@@ -1,6 +1,6 @@
 {
   "name": "tax-document-sync",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local Electron app for automatic Brazilian NF-e document synchronization.",
   "license": "MIT",
   "author": {
