@@ -1,15 +1,19 @@
-import type { Logger } from "./logger";
+import type { LogContext, Logger } from "./logger";
 
 export class ConsoleLogger implements Logger {
-  debug(message: string, context: Record<string, unknown> = {}): void {
-    console.debug(message, context);
+  async debug(event: string, context: LogContext = {}): Promise<void> {
+    console.debug(event, context);
   }
 
-  info(message: string, context: Record<string, unknown> = {}): void {
-    console.info(message, context);
+  async info(event: string, context: LogContext = {}): Promise<void> {
+    console.info(event, context);
   }
 
-  error(message: string, context: Record<string, unknown> = {}): void {
-    console.error(message, context);
+  async warn(event: string, context: LogContext = {}): Promise<void> {
+    console.warn(event, context);
+  }
+
+  async error(event: string, context: LogContext = {}): Promise<void> {
+    console.error(event, context);
   }
 }

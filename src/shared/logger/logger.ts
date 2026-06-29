@@ -1,5 +1,9 @@
+export type LogContext = Record<string, unknown>;
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
 export interface Logger {
-  debug(message: string, context?: Record<string, unknown>): void;
-  info(message: string, context?: Record<string, unknown>): void;
-  error(message: string, context?: Record<string, unknown>): void;
+  debug(event: string, context?: LogContext): Promise<void>;
+  info(event: string, context?: LogContext): Promise<void>;
+  warn(event: string, context?: LogContext): Promise<void>;
+  error(event: string, context?: LogContext): Promise<void>;
 }

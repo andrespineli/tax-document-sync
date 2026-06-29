@@ -15,6 +15,7 @@ export class SaveSettingsHandler {
 
     await this.settings.save({
       storageDirectory: command.storageDirectory?.trim() || null,
+      logDirectory: command.logDirectory?.trim() || null,
       syncIntervalMinutes: command.syncIntervalMinutes,
       notificationsEnabled: command.notificationsEnabled,
       theme: command.theme,

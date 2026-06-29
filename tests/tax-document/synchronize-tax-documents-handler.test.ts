@@ -50,7 +50,8 @@ describe("SynchronizeTaxDocumentsHandler", () => {
       },
     });
     const storage = new FakeStorage();
-    const handler = newHandler(fiscalEntities, taxDocuments, gateway, storage);
+    const logger = new CapturingLogger();
+    const handler = newHandler(fiscalEntities, taxDocuments, gateway, storage, logger);
 
     const summary = await handler.handle(new SynchronizeTaxDocuments(NOW));
 
@@ -60,6 +61,17 @@ describe("SynchronizeTaxDocumentsHandler", () => {
     expect(fiscalEntities.saved.at(-1)?.schedule.lastDfeSequenceNumber).toBe(42);
     expect(taxDocuments.saved.at(-1)?.status).toBe("LOADED");
     expect(storage.saved[0]?.content).toContain("<nfeProc>");
+    expect(logger.events.map((event) => event.event)).toEqual(expect.arrayContaining([
+      "FISCAL_DOCUMENT_SEARCH_STARTED",
+      "FISCAL_DOCUMENT_SEARCH_FINISHED",
+      "TAX_DOCUMENT_MANIFEST_STARTED",
+      "TAX_DOCUMENT_MANIFEST_FINISHED",
+      "TAX_DOCUMENT_DOWNLOAD_STARTED",
+      "TAX_DOCUMENT_DOWNLOAD_FINISHED",
+      "TAX_DOCUMENT_STORED",
+    ]));
+    expect(JSON.stringify(logger.events)).not.toContain("<nfeProc>");
+    expect(JSON.stringify(logger.events)).not.toContain("<resNFe>");
   });
 
   it("delays the entity for seventy minutes when SEFAZ asks to retry later", async () => {
@@ -118,6 +130,7 @@ function newHandler(
   taxDocuments: TaxDocuments,
   gateway: FiscalDocumentGateway,
   storage: DocumentStorage,
+  logger: Logger = new NoopLogger(),
 ): SynchronizeTaxDocumentsHandler {
   return new SynchronizeTaxDocumentsHandler(
     fiscalEntities,
@@ -125,7 +138,7 @@ function newHandler(
     gateway,
     storage,
     new FixedClock(),
-    new NoopLogger(),
+    logger,
   );
 }
 
@@ -218,7 +231,32 @@ class FixedClock implements Clock {
 }
 
 class NoopLogger implements Logger {
-  debug(): void {}
-  info(): void {}
-  error(): void {}
+  async debug(): Promise<void> {}
+  async info(): Promise<void> {}
+  async warn(): Promise<void> {}
+  async error(): Promise<void> {}
+}
+
+class CapturingLogger implements Logger {
+  readonly events: Array<{
+    level: string;
+    event: string;
+    context: Record<string, unknown>;
+  }> = [];
+
+  async debug(event: string, context: Record<string, unknown> = {}): Promise<void> {
+    this.events.push({ level: "debug", event, context });
+  }
+
+  async info(event: string, context: Record<string, unknown> = {}): Promise<void> {
+    this.events.push({ level: "info", event, context });
+  }
+
+  async warn(event: string, context: Record<string, unknown> = {}): Promise<void> {
+    this.events.push({ level: "warn", event, context });
+  }
+
+  async error(event: string, context: Record<string, unknown> = {}): Promise<void> {
+    this.events.push({ level: "error", event, context });
+  }
 }

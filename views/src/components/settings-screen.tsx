@@ -10,6 +10,7 @@ interface Props {
 
 export function SettingsScreen({ settings, syncStatus, onChanged }: Props): React.JSX.Element {
   const [storageDirectory, setStorageDirectory] = useState(settings.storageDirectory ?? "");
+  const [logDirectory, setLogDirectory] = useState(settings.logDirectory ?? "");
   const [syncIntervalMinutes, setSyncIntervalMinutes] = useState(settings.syncIntervalMinutes);
   const [notificationsEnabled, setNotificationsEnabled] = useState(settings.notificationsEnabled);
   const [theme, setTheme] = useState(settings.theme);
@@ -18,6 +19,7 @@ export function SettingsScreen({ settings, syncStatus, onChanged }: Props): Reac
 
   useEffect(() => {
     setStorageDirectory(settings.storageDirectory ?? "");
+    setLogDirectory(settings.logDirectory ?? "");
     setSyncIntervalMinutes(settings.syncIntervalMinutes);
     setNotificationsEnabled(settings.notificationsEnabled);
     setTheme(settings.theme);
@@ -63,10 +65,22 @@ export function SettingsScreen({ settings, syncStatus, onChanged }: Props): Reac
     return value.length > 0 ? value : null;
   }
 
-  async function chooseDirectory(): Promise<void> {
+  function normalizedLogDirectory(): string | null {
+    const value = logDirectory.trim();
+    return value.length > 0 ? value : null;
+  }
+
+  async function chooseStorageDirectory(): Promise<void> {
     const selected = await window.taxDocumentSync.settings.chooseDirectory();
     if (selected) {
       setStorageDirectory(selected);
+    }
+  }
+
+  async function chooseLogDirectory(): Promise<void> {
+    const selected = await window.taxDocumentSync.settings.chooseDirectory();
+    if (selected) {
+      setLogDirectory(selected);
     }
   }
 
@@ -80,6 +94,7 @@ export function SettingsScreen({ settings, syncStatus, onChanged }: Props): Reac
     try {
       await window.taxDocumentSync.settings.save({
         storageDirectory: normalizedStorageDirectory(),
+        logDirectory: normalizedLogDirectory(),
         syncIntervalMinutes,
         notificationsEnabled,
         theme: nextTheme,
@@ -99,6 +114,7 @@ export function SettingsScreen({ settings, syncStatus, onChanged }: Props): Reac
     try {
       await window.taxDocumentSync.settings.save({
         storageDirectory: normalizedStorageDirectory(),
+        logDirectory: normalizedLogDirectory(),
         syncIntervalMinutes,
         notificationsEnabled,
         theme,
@@ -123,7 +139,16 @@ export function SettingsScreen({ settings, syncStatus, onChanged }: Props): Reac
           Diretório dos XMLs
           <div className="input-action">
             <input value={storageDirectory} onChange={(event) => setStorageDirectory(event.target.value)} />
-            <button type="button" onClick={() => void chooseDirectory()}>
+            <button type="button" onClick={() => void chooseStorageDirectory()}>
+              <FolderOpen size={17} /> Escolher
+            </button>
+          </div>
+        </label>
+        <label className="span-2">
+          Diretório dos logs
+          <div className="input-action">
+            <input value={logDirectory} onChange={(event) => setLogDirectory(event.target.value)} />
+            <button type="button" onClick={() => void chooseLogDirectory()}>
               <FolderOpen size={17} /> Escolher
             </button>
           </div>

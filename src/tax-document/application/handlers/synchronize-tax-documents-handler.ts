@@ -43,7 +43,7 @@ export class SynchronizeTaxDocumentsHandler {
     private readonly logger: Logger,
   ) {}
 
-  async handle(_command: SynchronizeTaxDocuments): Promise<SyncSummary> {
+  async handle(command: SynchronizeTaxDocuments): Promise<SyncSummary> {
     const summary: SyncSummary = {
       searchedEntities: 0,
       delayedEntities: 0,
@@ -56,19 +56,37 @@ export class SynchronizeTaxDocumentsHandler {
 
     const now = this.clock.now();
     const entities = await this.fiscalEntities.eligibleForSynchronization(now);
+    await this.logger.info("SYNC_ELIGIBLE_ENTITIES_FOUND", {
+      runId: command.runId,
+      requestedAt: command.requestedAt.toISOString(),
+      eligibleEntities: entities.length,
+    });
 
     for (const fiscalEntity of entities) {
       summary.searchedEntities += 1;
 
       try {
-        await this.synchronizeEntity(fiscalEntity, summary);
+        await this.logger.info("SYNC_ENTITY_STARTED", {
+          runId: command.runId,
+          fiscalEntityId: fiscalEntity.id.value,
+          cnpj: fiscalEntity.cnpj.value,
+          legalName: fiscalEntity.legalName.value,
+          lastDfeSequenceNumber: fiscalEntity.schedule.lastDfeSequenceNumber,
+        });
+        await this.synchronizeEntity(command.runId, fiscalEntity, summary);
+        await this.logger.info("SYNC_ENTITY_FINISHED", {
+          runId: command.runId,
+          fiscalEntityId: fiscalEntity.id.value,
+          cnpj: fiscalEntity.cnpj.value,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         summary.errors.push(`${fiscalEntity.cnpj.value}: ${message}`);
-        this.logger.error("SYNC_ENTITY_FAILED", {
+        await this.logger.error("SYNC_ENTITY_FAILED", {
+          runId: command.runId,
           fiscalEntityId: fiscalEntity.id.value,
           cnpj: fiscalEntity.cnpj.value,
-          error: message,
+          error,
         });
       }
     }
@@ -77,18 +95,35 @@ export class SynchronizeTaxDocumentsHandler {
   }
 
   private async synchronizeEntity(
+    runId: string,
     fiscalEntity: FiscalEntity,
     summary: SyncSummary,
   ): Promise<void> {
+    await this.logger.info("FISCAL_DOCUMENT_SEARCH_STARTED", {
+      runId,
+      fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
+      lastDfeSequenceNumber: fiscalEntity.schedule.lastDfeSequenceNumber,
+    });
+
     const response = await this.fiscalDocumentGateway.search(
       fiscalEntity,
       fiscalEntity.schedule.lastDfeSequenceNumber,
     );
 
-    this.logger.debug("WS_RESPONSE_SEARCH", {
+    await this.logger.info("FISCAL_DOCUMENT_SEARCH_FINISHED", {
+      runId,
       fiscalEntityId: fiscalEntity.id.value,
       cnpj: fiscalEntity.cnpj.value,
-      response,
+      statusCode: response.statusCode,
+      reason: response.reason,
+      lastSequenceNumber: response.lastSequenceNumber,
+      documentsCount: response.documents.length,
+      documents: response.documents.map((document) => ({
+        key: document.key,
+        statusCode: document.statusCode,
+        nsu: document.nsu,
+      })),
     });
 
     if (response.statusCode !== FOUND_RECIPIENT_DOCUMENT_STATUS_CODE) {
@@ -98,6 +133,14 @@ export class SynchronizeTaxDocumentsHandler {
           this.clock.now(),
         );
         await this.fiscalEntities.save(delayed);
+        await this.logger.warn("FISCAL_ENTITY_DELAYED", {
+          runId,
+          fiscalEntityId: fiscalEntity.id.value,
+          cnpj: fiscalEntity.cnpj.value,
+          statusCode: response.statusCode,
+          reason: response.reason,
+          nextSearchAt: delayed.schedule.nextSearchAt?.toISOString() ?? null,
+        });
         summary.delayedEntities += 1;
         return;
       }
@@ -108,14 +151,18 @@ export class SynchronizeTaxDocumentsHandler {
     for (const document of response.documents) {
       if (document.statusCode !== AUTHORIZED_NFE_STATUS_CODE) {
         summary.skippedDocuments += 1;
-        this.logger.debug("UNAUTHORIZED_DOCUMENT_SKIPPED", {
+        await this.logger.warn("TAX_DOCUMENT_SKIPPED_UNAUTHORIZED", {
+          runId,
           fiscalEntityId: fiscalEntity.id.value,
-          document,
+          cnpj: fiscalEntity.cnpj.value,
+          key: document.key,
+          statusCode: document.statusCode,
+          nsu: document.nsu,
         });
         continue;
       }
 
-      await this.processAuthorizedDocument(fiscalEntity, document.key, summary);
+      await this.processAuthorizedDocument(runId, fiscalEntity, document.key, summary);
     }
 
     const updated = fiscalEntity.updateLastDfeSequenceNumber(
@@ -123,9 +170,16 @@ export class SynchronizeTaxDocumentsHandler {
       this.clock.now(),
     );
     await this.fiscalEntities.save(updated);
+    await this.logger.info("FISCAL_ENTITY_SEQUENCE_UPDATED", {
+      runId,
+      fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
+      lastDfeSequenceNumber: response.lastSequenceNumber,
+    });
   }
 
   private async processAuthorizedDocument(
+    runId: string,
     fiscalEntity: FiscalEntity,
     key: string,
     summary: SyncSummary,
@@ -134,30 +188,63 @@ export class SynchronizeTaxDocumentsHandler {
     const existing = await this.taxDocuments.byKey(accessKey);
 
     if (!existing) {
-      const manifested = await this.manifest(fiscalEntity, accessKey);
+      await this.logger.info("TAX_DOCUMENT_NEW_AUTHORIZED", {
+        runId,
+        fiscalEntityId: fiscalEntity.id.value,
+        cnpj: fiscalEntity.cnpj.value,
+        key: accessKey.value,
+      });
+      const manifested = await this.manifest(runId, fiscalEntity, accessKey);
       summary.manifestedDocuments += 1;
-      await this.downloadAndStore(fiscalEntity, manifested, summary);
+      await this.downloadAndStore(runId, fiscalEntity, manifested, summary);
       return;
     }
 
     if (existing.isManifested()) {
-      await this.downloadAndStore(fiscalEntity, existing, summary);
+      await this.logger.info("TAX_DOCUMENT_MANIFESTED_PENDING_DOWNLOAD", {
+        runId,
+        fiscalEntityId: fiscalEntity.id.value,
+        cnpj: fiscalEntity.cnpj.value,
+        key: accessKey.value,
+      });
+      await this.downloadAndStore(runId, fiscalEntity, existing, summary);
+      return;
     }
+
+    await this.logger.debug("TAX_DOCUMENT_ALREADY_PROCESSED", {
+      runId,
+      fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
+      key: accessKey.value,
+      status: existing.status,
+    });
   }
 
   private async manifest(
+    runId: string,
     fiscalEntity: FiscalEntity,
     accessKey: AccessKey,
   ): Promise<TaxDocument> {
+    await this.logger.info("TAX_DOCUMENT_MANIFEST_STARTED", {
+      runId,
+      fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
+      key: accessKey.value,
+    });
+
     const response = await this.fiscalDocumentGateway.manifest(
       fiscalEntity,
       accessKey.value,
     );
 
-    this.logger.debug("WS_RESPONSE_MANIFEST", {
+    await this.logger.info("TAX_DOCUMENT_MANIFEST_FINISHED", {
+      runId,
       fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
       key: accessKey.value,
-      response,
+      statusCode: response.statusCode,
+      reason: response.reason,
+      accepted: ACCEPTED_MANIFEST_STATUS_CODES.has(response.statusCode),
     });
 
     if (!ACCEPTED_MANIFEST_STATUS_CODES.has(response.statusCode)) {
@@ -179,20 +266,31 @@ export class SynchronizeTaxDocumentsHandler {
   }
 
   private async downloadAndStore(
+    runId: string,
     fiscalEntity: FiscalEntity,
     document: TaxDocument,
     summary: SyncSummary,
   ): Promise<void> {
+    await this.logger.info("TAX_DOCUMENT_DOWNLOAD_STARTED", {
+      runId,
+      fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
+      key: document.accessKey.value,
+    });
+
     const response = await this.fiscalDocumentGateway.download(
       fiscalEntity,
       document.accessKey.value,
     );
 
-    this.logger.debug("WS_RESPONSE_DOWNLOAD", {
+    await this.logger.info("TAX_DOCUMENT_DOWNLOAD_FINISHED", {
+      runId,
       fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
       key: document.accessKey.value,
       statusCode: response.statusCode,
       reason: response.reason,
+      contentBytes: response.content ? Buffer.byteLength(response.content, "utf8") : 0,
     });
 
     if (response.statusCode !== FOUND_RECIPIENT_DOCUMENT_STATUS_CODE || !response.content) {
@@ -208,6 +306,13 @@ export class SynchronizeTaxDocumentsHandler {
       document.accessKey,
       response.content,
     );
+    await this.logger.info("TAX_DOCUMENT_STORED", {
+      runId,
+      fiscalEntityId: fiscalEntity.id.value,
+      cnpj: fiscalEntity.cnpj.value,
+      key: document.accessKey.value,
+      filePath,
+    });
 
     const loaded = downloaded.loaded(filePath, this.clock.now());
     await this.taxDocuments.save(loaded);

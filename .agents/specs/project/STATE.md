@@ -14,6 +14,7 @@
 - Replace inline TypeScript migrations with Flyway-style SQL files under `db/migrations`, with legacy baseline support for existing local databases.
 - Keep the project license as MIT, but validate third-party dependencies as permissive-compatible rather than assuming every dependency is MIT.
 - Use `npm rebuild better-sqlite3` before Vitest and `electron-rebuild -f -w better-sqlite3` before Electron dev/preview because Node and Electron use different native module ABIs.
+- Use local structured JSON Lines logs with daily files. Default logs directory is `<XML storage directory>/logs`; users can override it in Configuracoes.
 
 ## Legacy Behavior Notes
 

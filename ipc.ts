@@ -75,6 +75,7 @@ export class Ipc {
 
     ipcMain.handle("settings:save", async (_event, request: AuthenticatedRequest<{
       storageDirectory: string | null;
+      logDirectory: string | null;
       syncIntervalMinutes: number;
       notificationsEnabled: boolean;
       theme: "light" | "dark";
@@ -83,6 +84,7 @@ export class Ipc {
       await this.dependencies.saveSettingsHandler.handle(
         new SaveSettings(
           request.payload.storageDirectory,
+          request.payload.logDirectory,
           request.payload.syncIntervalMinutes,
           request.payload.notificationsEnabled,
           request.payload.theme,

@@ -3,6 +3,7 @@ import type { AppSettings, Settings } from "../../domain/ports/outbound/settings
 
 interface RawSettings {
   storage_directory: string | null;
+  log_directory: string | null;
   sync_interval_minutes: number;
   notifications_enabled: number;
   theme: string;
@@ -15,6 +16,7 @@ export class SqliteSettings implements Settings {
     const row = this.database.prepare(`
       SELECT
         storage_directory,
+        log_directory,
         sync_interval_minutes,
         notifications_enabled,
         theme
@@ -24,6 +26,7 @@ export class SqliteSettings implements Settings {
 
     return {
       storageDirectory: row?.storage_directory ?? null,
+      logDirectory: row?.log_directory ?? null,
       syncIntervalMinutes: row?.sync_interval_minutes ?? 5,
       notificationsEnabled: row?.notifications_enabled === undefined
         ? true
@@ -36,21 +39,23 @@ export class SqliteSettings implements Settings {
     const now = new Date().toISOString();
     this.database.prepare(`
       INSERT INTO settings (
-        id, storage_directory, sync_interval_minutes, notifications_enabled,
-        theme, created_at, updated_at
+        id, storage_directory, log_directory, sync_interval_minutes,
+        notifications_enabled, theme, created_at, updated_at
       )
       VALUES (
-        1, @storageDirectory, @syncIntervalMinutes, @notificationsEnabled,
-        @theme, @now, @now
+        1, @storageDirectory, @logDirectory, @syncIntervalMinutes,
+        @notificationsEnabled, @theme, @now, @now
       )
       ON CONFLICT(id) DO UPDATE SET
         storage_directory = excluded.storage_directory,
+        log_directory = excluded.log_directory,
         sync_interval_minutes = excluded.sync_interval_minutes,
         notifications_enabled = excluded.notifications_enabled,
         theme = excluded.theme,
         updated_at = excluded.updated_at
     `).run({
       storageDirectory: settings.storageDirectory,
+      logDirectory: settings.logDirectory,
       syncIntervalMinutes: settings.syncIntervalMinutes,
       notificationsEnabled: settings.notificationsEnabled ? 1 : 0,
       theme: settings.theme,

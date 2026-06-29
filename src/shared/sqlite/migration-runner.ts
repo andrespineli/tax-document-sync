@@ -94,6 +94,10 @@ export class MigrationRunner {
     if (this.tableExists("remembered_sessions")) {
       this.recordBaseline(migrations, 3);
     }
+
+    if (this.columnExists("settings", "log_directory")) {
+      this.recordBaseline(migrations, 4);
+    }
   }
 
   private validateAppliedMigrations(migrations: Migration[]): void {

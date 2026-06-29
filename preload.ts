@@ -38,6 +38,7 @@ const api = {
     get: () => invoke("settings:get"),
     save: (payload: {
       storageDirectory: string | null;
+      logDirectory: string | null;
       syncIntervalMinutes: number;
       notificationsEnabled: boolean;
       theme: "light" | "dark";

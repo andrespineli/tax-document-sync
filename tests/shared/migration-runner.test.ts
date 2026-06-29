@@ -15,7 +15,8 @@ describe("MigrationRunner", () => {
     expect(tableExists(database, "users")).toBe(true);
     expect(tableExists(database, "remembered_sessions")).toBe(true);
     expect(columnExists(database, "settings", "notifications_enabled")).toBe(true);
-    expect(appliedMigrationCount(database)).toBe(3);
+    expect(columnExists(database, "settings", "log_directory")).toBe(true);
+    expect(appliedMigrationCount(database)).toBe(4);
     database.close();
   });
 
@@ -27,8 +28,9 @@ describe("MigrationRunner", () => {
 
     expect(columnExists(database, "settings", "notifications_enabled")).toBe(true);
     expect(columnExists(database, "settings", "theme")).toBe(true);
+    expect(columnExists(database, "settings", "log_directory")).toBe(true);
     expect(tableExists(database, "remembered_sessions")).toBe(true);
-    expect(appliedMigrationCount(database)).toBe(3);
+    expect(appliedMigrationCount(database)).toBe(4);
     database.close();
   });
 
@@ -66,6 +68,7 @@ function copyMigrationsToTemp(): string {
     "V1__initial_schema.sql",
     "V2__settings_preferences.sql",
     "V3__remembered_sessions.sql",
+    "V4__log_directory_settings.sql",
   ]) {
     copyFileSync(join(migrationsDirectory(), file), join(target, file));
   }

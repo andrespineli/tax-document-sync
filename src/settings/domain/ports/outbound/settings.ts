@@ -1,5 +1,6 @@
 export interface AppSettings {
   storageDirectory: string | null;
+  logDirectory: string | null;
   syncIntervalMinutes: number;
   notificationsEnabled: boolean;
   theme: "light" | "dark";

@@ -1,8 +1,12 @@
 import { Notification, type BrowserWindow } from "electron";
+import { randomUUID } from "node:crypto";
 import { SynchronizeTaxDocuments } from "@/tax-document/application/commands/synchronize-tax-documents";
 import type { SynchronizeTaxDocumentsHandler } from "@/tax-document/application/handlers/synchronize-tax-documents-handler";
 import type { SyncSummary } from "@/tax-document/application/services/sync-summary";
 import type { Settings } from "@/settings/domain/ports/outbound/settings";
+import type { Logger } from "@/shared/logger/logger";
+
+type SyncTrigger = "manual" | "scheduled" | "scheduler_start";
 
 export interface SyncStatus {
   running: boolean;
@@ -28,6 +32,7 @@ export class SyncScheduler {
   constructor(
     private readonly handler: SynchronizeTaxDocumentsHandler,
     private readonly settings: Settings,
+    private readonly logger: Logger,
   ) {}
 
   attach(window: BrowserWindow): void {
@@ -46,7 +51,11 @@ export class SyncScheduler {
     const intervalMinutes = (await this.settings.get()).syncIntervalMinutes;
     this.status.running = true;
     this.scheduleNext(intervalMinutes);
-    await this.runNow();
+    await this.logger.info("SYNC_SCHEDULER_STARTED", {
+      intervalMinutes,
+      nextRunAt: this.status.nextRunAt,
+    });
+    await this.runNow("scheduler_start");
     return this.status;
   }
 
@@ -58,27 +67,49 @@ export class SyncScheduler {
 
     this.status.running = false;
     this.status.nextRunAt = null;
+    void this.logger.info("SYNC_SCHEDULER_STOPPED");
     this.emit();
     return this.status;
   }
 
-  async runNow(): Promise<SyncStatus> {
+  async runNow(trigger: SyncTrigger = "manual"): Promise<SyncStatus> {
+    const runId = randomUUID();
+
     if (this.status.inProgress) {
+      await this.logger.warn("SYNC_RUN_SKIPPED_IN_PROGRESS", {
+        runId,
+        trigger,
+      });
       return this.status;
     }
 
     this.status.inProgress = true;
     this.status.lastError = null;
     this.emit();
+    await this.logger.info("SYNC_RUN_STARTED", {
+      runId,
+      trigger,
+    });
 
     try {
       this.status.lastSummary = await this.handler.handle(
-        new SynchronizeTaxDocuments(new Date()),
+        new SynchronizeTaxDocuments(new Date(), runId),
       );
       this.status.lastRunAt = new Date().toISOString();
+      await this.logger.info("SYNC_RUN_FINISHED", {
+        runId,
+        trigger,
+        summary: this.status.lastSummary,
+        lastRunAt: this.status.lastRunAt,
+      });
       await this.notifyWhenDocumentsWereFound(this.status.lastSummary);
     } catch (error) {
       this.status.lastError = error instanceof Error ? error.message : String(error);
+      await this.logger.error("SYNC_RUN_FAILED", {
+        runId,
+        trigger,
+        error,
+      });
     } finally {
       this.status.inProgress = false;
       this.emit();
@@ -96,7 +127,7 @@ export class SyncScheduler {
     this.status.nextRunAt = new Date(Date.now() + milliseconds).toISOString();
     this.interval = setInterval(() => {
       this.status.nextRunAt = new Date(Date.now() + milliseconds).toISOString();
-      void this.runNow();
+      void this.runNow("scheduled");
     }, milliseconds);
     this.emit();
   }

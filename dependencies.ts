@@ -12,7 +12,7 @@ import { Query as AuthStateQuery } from "@/shared/auth/application/queries/query
 import { SqliteRememberedSessions } from "@/shared/auth/outbound/persistence/sqlite-remembered-sessions";
 import { SqliteUsers } from "@/shared/auth/outbound/persistence/sqlite-users";
 import { AppPaths } from "@/shared/filesystem/paths";
-import { ConsoleLogger } from "@/shared/logger/console-logger";
+import { StructuredFileLogger } from "@/shared/logger/structured-file-logger";
 import { PasswordHasher } from "@/shared/security/password-hasher";
 import { RememberedSessionManager } from "@/shared/session/remembered-session-manager";
 import { RememberedSessionTokenStore } from "@/shared/session/remembered-session-token-store";
@@ -29,6 +29,7 @@ import { LocalDocumentStorage } from "@/tax-document/outbound/storage/local-docu
 import { ElectronSecretCodec } from "./electron-secret-codec";
 import { SyncScheduler } from "./sync-scheduler";
 import { UpdateService } from "./update-service";
+import { SettingsLogDirectory } from "./settings-log-directory";
 
 export class Dependencies {
   readonly appPaths = new AppPaths(app.getPath("userData"));
@@ -50,6 +51,10 @@ export class Dependencies {
     this.sessionTokenHasher,
   );
   readonly settings = new SqliteSettings(this.database);
+  readonly logger = new StructuredFileLogger(
+    new SettingsLogDirectory(this.settings, this.appPaths),
+    new SystemClock(),
+  );
   readonly fiscalEntities = new SqliteFiscalEntities(
     this.database,
     this.secretCodec,
@@ -78,11 +83,12 @@ export class Dependencies {
     new NodeMdeFiscalDocumentGateway(),
     new LocalDocumentStorage(this.settings, this.appPaths),
     new SystemClock(),
-    new ConsoleLogger(),
+    this.logger,
   );
   readonly syncScheduler = new SyncScheduler(
     this.synchronizeTaxDocumentsHandler,
     this.settings,
+    this.logger,
   );
   readonly updateService = new UpdateService(app.getVersion(), app.isPackaged);
 

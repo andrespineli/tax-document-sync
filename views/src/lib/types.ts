@@ -29,6 +29,7 @@ export interface TaxDocumentRecord {
 
 export interface AppSettingsRecord {
   storageDirectory: string | null;
+  logDirectory: string | null;
   syncIntervalMinutes: number;
   notificationsEnabled: boolean;
   theme: "light" | "dark";
